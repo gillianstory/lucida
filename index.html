@@ -337,6 +337,27 @@ function AuthScreen({onAuth}) {
   );
 }
 
+// ── FEELING SECTION (standalone to prevent focus-steal) ──
+function FeelingSection({value, onChange, isEdit, feelings, showFeelingInput, setShowFeelingInput, customFeeling, setCustomFeeling, addCustomFeeling}) {
+  return (
+    <div style={{marginBottom:"18px",textAlign:"center"}}>
+      <p style={{margin:"0 0 12px",fontSize:"11px",letterSpacing:"0.3em",textTransform:"uppercase",color:"rgba(226,185,78,0.75)",fontFamily:"'Poiret One','Palatino Linotype',Georgia,serif",textAlign:"center"}}>The feeling</p>
+      <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"center",marginBottom:"10px"}}>
+        {feelings.map(f=>(
+          <button key={f} onClick={()=>onChange(f)} style={{padding:"7px 14px",borderRadius:"20px",cursor:"pointer",fontFamily:"'Poiret One','Palatino Linotype',Georgia,serif",fontSize:"15px",fontStyle:"italic",background:value===f?"rgba(226,185,78,0.12)":"transparent",border:`1px solid ${value===f?"rgba(226,185,78,0.75)":"rgba(242,234,216,0.12)"}`,color:value===f?"#E2B94E":"rgba(242,234,216,0.82)",transition:"all 0.2s"}}>{f}</button>
+        ))}
+        {!showFeelingInput
+          ?<button onClick={()=>setShowFeelingInput(true)} style={{padding:"7px 14px",borderRadius:"20px",cursor:"pointer",fontFamily:"'Poiret One','Palatino Linotype',Georgia,serif",fontSize:"15px",background:"transparent",border:"1px dashed rgba(242,234,216,0.12)",color:"rgba(242,234,216,0.55)"}}>+ Add</button>
+          :<div style={{display:"flex",gap:"6px",alignItems:"center"}}>
+             <input value={customFeeling} onChange={e=>setCustomFeeling(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addCustomFeeling(isEdit);if(e.key==="Escape"){setShowFeelingInput(false);setCustomFeeling("");}}} placeholder="type a feeling..." style={{width:"140px",background:"rgba(9,23,42,0.85)",border:"1px solid rgba(226,185,78,0.28)",borderRadius:"20px",color:"#F2EAD8",fontFamily:"'Poiret One','Palatino Linotype',Georgia,serif",outline:"none",boxSizing:"border-box",fontSize:"14px",padding:"6px 12px",fontStyle:"italic"}}/>
+             <button onClick={()=>addCustomFeeling(isEdit)} style={{background:"transparent",border:"1px solid rgba(226,185,78,0.28)",borderRadius:"20px",color:"#E2B94E",fontSize:"13px",padding:"6px 12px",cursor:"pointer",fontFamily:"'Poiret One','Palatino Linotype',Georgia,serif"}}>Add</button>
+           </div>
+        }
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN APP ──
 function Lucida() {
   const [user, setUser]             = useState(null);
@@ -386,7 +407,7 @@ function Lucida() {
   const [seed]                      = useState(Math.random());
 
   const mediaRef=useRef(null); const timerRef=useRef(null); const chunksRef=useRef([]);
-  const audioRef=useRef(); const transRef=useRef();
+  const audioRef=useRef(); const transRef=useRef(); const imgRef=useRef();
 
   // Auth check on mount
   useEffect(()=>{
@@ -415,7 +436,7 @@ function Lucida() {
 
   async function loadCons() {
     const {data} = await supa.from("constellations").select("*").order("created_at",{ascending:false});
-    if (data) setCons(data.map(c=>({...c,ids:c.spark_ids||[]})));
+    if (data) { const cleaned = data.map(c=>({...c,ids:(c.spark_ids||[]).filter(Boolean)})); setCons(cleaned); }
   }
 
   async function saveSpark() {
@@ -467,7 +488,7 @@ function Lucida() {
   async function deleteSpark(id) {
     await supa.from("sparks").delete().eq("id",id);
     setSparks(p=>p.filter(s=>s.id!==id));
-    setCons(p=>p.map(c=>({...c,ids:c.ids.filter(i=>i!==id),spark_ids:c.spark_ids.filter(i=>i!==id)})));
+    setCons(p=>p.map(c=>({...c,ids:(c.ids||[]).filter(i=>i!==id),spark_ids:(c.spark_ids||[]).filter(i=>i!==id)})));
     setOpenSpark(null); setDelConfirm(null);
   }
 
@@ -590,27 +611,9 @@ function Lucida() {
   const today=new Date().toLocaleDateString("en-CA");
   const weekDots=weekDays.map(d=>sparks.some(s=>s.date===d));
   const weekCount=weekDots.filter(Boolean).length;
+
   const capturePrompt={sound:"What did you hear?",music:"What's the music?",quote:"What are the words?",visual:"What did you see?",writing:"What did you write?",idea:"What caught you?"};
 
-  function FeelingSection({value,onChange,isEdit}) {
-    return (
-      <div style={{marginBottom:"18px",textAlign:"center"}}>
-        <Lbl center>The feeling</Lbl>
-        <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"center",marginBottom:"10px"}}>
-          {feelings.map(f=>(
-            <button key={f} onClick={()=>onChange(f)} style={{padding:"7px 14px",borderRadius:"20px",cursor:"pointer",fontFamily:BODY,fontSize:"15px",fontStyle:"italic",background:value===f?"rgba(226,185,78,0.12)":"transparent",border:`1px solid ${value===f?GOLDD:DIMMER}`,color:value===f?GOLDW:TEXTD,transition:"all 0.2s"}}>{f}</button>
-          ))}
-          {!showFeelingInput
-            ?<button onClick={()=>setShowFeelingInput(true)} style={{padding:"7px 14px",borderRadius:"20px",cursor:"pointer",fontFamily:BODY,fontSize:"15px",background:"transparent",border:`1px dashed ${DIMMER}`,color:TEXTDD}}>+ Add</button>
-            :<div style={{display:"flex",gap:"6px",alignItems:"center"}}>
-               <input autoFocus value={customFeeling} onChange={e=>setCustomFeeling(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")addCustomFeeling(isEdit);if(e.key==="Escape"){setShowFeelingInput(false);setCustomFeeling("");}}} placeholder="type a feeling..." style={{...ISty,fontSize:"14px",padding:"6px 12px",width:"140px",borderRadius:"20px",fontStyle:"italic"}}/>
-               <button onClick={()=>addCustomFeeling(isEdit)} style={{background:"transparent",border:`1px solid ${BORDER}`,borderRadius:"20px",color:GOLDW,fontSize:"13px",padding:"6px 12px",cursor:"pointer",fontFamily:BODY}}>Add</button>
-             </div>
-          }
-        </div>
-      </div>
-    );
-  }
 
   if (loading) return (
     <div style={{minHeight:"100vh",background:NAVY,display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -900,7 +903,7 @@ function Lucida() {
               <div style={{position:"relative",padding:"18px 0 16px",textAlign:"center"}}>
                 {storyText
                   ?<><p style={{margin:"0 0 20px",fontSize:"17px",lineHeight:1.9,color:TEXT,fontStyle:"italic"}}>{storyText}</p><div style={{display:"flex",gap:"10px",justifyContent:"center",flexWrap:"wrap"}}><GBtn onClick={()=>setStoryShareOpen(true)} small>✦ Share</GBtn><GBtn onClick={()=>setStoryText("")} small>Regenerate</GBtn></div></>
-                  :<><p style={{margin:"0 0 16px",fontSize:"15px",color:TEXTD,lineHeight:1.75}}>Let Lucida write a poetic reflection on {RANGE_LABELS[storyRange].toLowerCase()}.</p><PBtn onClick={loadStory} disabled={loadingStory} small muted>{loadingStory?"Reading your sparks...":"Generate reflection"}</PBtn></>
+                  :<><p style={{margin:"0 0 16px",fontSize:"15px",color:TEXTD,lineHeight:1.75}}>Let Lucida write a poetic reflection on {RANGE_LABELS[storyRange].toLowerCase()}.</p><PBtn onClick={loadStory} disabled={loadingStory} small muted>{loadingStory?"Reading your sparks...":"Generate reflection"}</PBtn><p style={{margin:"10px 0 0",fontSize:"12px",color:"rgba(242,234,216,0.35)",fontStyle:"italic"}}>AI reflection requires the Claude prototype environment</p></>
                 }
               </div>
               <GoldLine/>
@@ -978,7 +981,7 @@ function Lucida() {
                     <div style={{display:"flex",gap:"10px",marginBottom:"12px",flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
                       {!recording?<button onClick={startRec} style={{padding:"10px 20px",background:"transparent",border:"1px solid rgba(155,174,212,0.5)",borderRadius:"3px",color:"#9BAED4",fontSize:"15px",cursor:"pointer",fontFamily:BODY,display:"flex",alignItems:"center",gap:"8px"}}><span style={{width:"8px",height:"8px",borderRadius:"50%",background:CRIMSON,display:"inline-block"}}/>Record</button>
                         :<button onClick={stopRec} style={{padding:"10px 20px",background:"rgba(139,26,42,0.14)",border:"1px solid rgba(139,26,42,0.5)",borderRadius:"3px",color:"#D4707F",fontSize:"15px",cursor:"pointer",fontFamily:BODY,display:"flex",alignItems:"center",gap:"8px"}}><span style={{width:"8px",height:"8px",borderRadius:"1px",background:CRIMSON,display:"inline-block"}}/>Stop · {fmtTime(recSecs)}</button>}
-                      <input ref={audioRef} type="file" accept="audio/*" onChange={handleAudio} style={{display:"none"}}/>
+                      <input ref={audioRef} type="file" accept="audio/mp4,audio/m4a,audio/aac,audio/x-m4a,audio/webm,audio/ogg,audio/*" onChange={handleAudio} style={{display:"none"}}/>
                       <button onClick={()=>audioRef.current.click()} style={{padding:"10px 16px",background:"transparent",border:`1px solid ${DIMMER}`,borderRadius:"3px",color:TEXTD,fontSize:"15px",cursor:"pointer",fontFamily:BODY}}>Upload</button>
                     </div>
                     {audioURL && <div style={{textAlign:"center"}}><audio controls src={audioURL} style={{width:"100%",marginBottom:"8px"}}/><button onClick={()=>{setAudioURL(null);setNewSpark(n=>({...n,audio:null}));}} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"14px",cursor:"pointer",fontFamily:BODY,padding:0}}>remove ×</button></div>}
@@ -1013,7 +1016,18 @@ function Lucida() {
                   </div>
                 )}
 
-                <FeelingSection value={newSpark.feeling} onChange={f=>setNewSpark(n=>({...n,feeling:f}))} isEdit={false}/>
+                {/* Image upload for visual */}
+                {newSpark.type==="visual" && (
+                  <div style={{marginBottom:"18px",textAlign:"center"}}>
+                    <input ref={imgRef} type="file" accept="image/*" capture="environment" onChange={e=>{const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>setNewSpark(n=>({...n,image:ev.target.result}));reader.readAsDataURL(f);}} style={{display:"none"}}/>
+                    {newSpark.image
+                      ?<div style={{position:"relative",display:"inline-block"}}><img src={newSpark.image} alt="" style={{maxWidth:"100%",maxHeight:"200px",objectFit:"cover",borderRadius:"3px",display:"block",border:`1px solid ${BORDER}`}}/><button onClick={()=>setNewSpark(n=>({...n,image:null}))} style={{position:"absolute",top:"8px",right:"8px",background:"rgba(9,23,42,0.9)",border:`1px solid ${BORDER}`,borderRadius:"2px",color:TEXTD,fontSize:"13px",padding:"4px 8px",cursor:"pointer",fontFamily:BODY}}>remove</button></div>
+                      :<button onClick={()=>imgRef.current.click()} style={{padding:"10px 18px",background:"transparent",border:`1px dashed ${DIMMER}`,borderRadius:"3px",color:TEXTD,fontSize:"15px",cursor:"pointer",fontFamily:BODY}}>📷 Add photo</button>
+                    }
+                  </div>
+                )}
+
+                <FeelingSection value={newSpark.feeling} onChange={f=>setNewSpark(n=>({...n,feeling:f}))} isEdit={false} feelings={feelings} showFeelingInput={showFeelingInput} setShowFeelingInput={setShowFeelingInput} customFeeling={customFeeling} setCustomFeeling={setCustomFeeling} addCustomFeeling={addCustomFeeling}/>
                 <div style={{display:"flex",gap:"12px",justifyContent:"center",flexWrap:"wrap"}}>
                   <PBtn onClick={()=>canSave&&setStep(2)} disabled={!canSave}>Reflect →</PBtn>
                   <GBtn onClick={saveSpark} disabled={saving}>{saving?"Saving...":"Just save it"}</GBtn>
@@ -1123,7 +1137,7 @@ function Lucida() {
                 <textarea value={editData.reflection||""} onChange={e=>setEditData(d=>({...d,reflection:e.target.value}))} placeholder="Why did this move you?" style={{...ISty,minHeight:"80px",fontSize:"15px",lineHeight:"1.7",padding:"13px",fontStyle:"italic",resize:"vertical",textAlign:"center",marginBottom:"14px"}}/>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Context</p>
                 <input value={editData.context||""} onChange={e=>setEditData(d=>({...d,context:e.target.value}))} placeholder="Where were you?" style={{...ISty,fontSize:"15px",padding:"12px 15px",textAlign:"center",marginBottom:"18px"}}/>
-                <FeelingSection value={editData.feeling} onChange={f=>setEditData(d=>({...d,feeling:f}))} isEdit={true}/>
+                <FeelingSection value={editData.feeling} onChange={f=>setEditData(d=>({...d,feeling:f}))} isEdit={true} feelings={feelings} showFeelingInput={showFeelingInput} setShowFeelingInput={setShowFeelingInput} customFeeling={customFeeling} setCustomFeeling={setCustomFeeling} addCustomFeeling={addCustomFeeling}/>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Constellations</p>
                 <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"center",marginBottom:"22px"}}>
                   {cons.map(c=>{
@@ -1206,7 +1220,7 @@ function Lucida() {
               <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(20,50,100,0.4) 0%,transparent 70%)",pointerEvents:"none"}}/>
               <ConstellationStarMap
                 sparks={randCon.sparks}
-                onSparkClick={(spark)=>{}}
+                onSparkClick={(spark)=>{setOpenSpark(spark);setEditMode(false);setShowRand(false);}}
                 width={520} height={340}
               />
               <div style={{padding:"10px 20px 14px",borderTop:`1px solid ${BORDER}`,textAlign:"center"}}>
