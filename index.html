@@ -7,25 +7,35 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="theme-color" content="#09172A"/>
   <title>Lucida</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Italiana&family=Poiret+One&display=swap"/>
   <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{background:#09172A;overflow-x:hidden;}
+    *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+    body{background:#09172A;overflow-x:hidden;font-family:'Poiret One',Georgia,serif;color:#F2EAD8;}
     #root{min-height:100vh;}
+    textarea::placeholder,input::placeholder{color:rgba(242,234,216,0.22);font-style:italic;}
+    div::-webkit-scrollbar{display:none;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes goldPulse{0%{opacity:0;transform:scale(0.95);}60%{opacity:1;transform:scale(1.02);}100%{opacity:1;transform:scale(1);}}
+    @keyframes starPulse{0%{opacity:0.6;}50%{opacity:1;}100%{opacity:0.6;}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    audio{accent-color:#E2B94E;}
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
-  <script type="text/babel">
-const { useState, useRef, useEffect } = React;
+<div id="root"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
 
-const fontLink = document.createElement("link");
-fontLink.rel = "stylesheet";
-fontLink.href = "https://fonts.googleapis.com/css2?family=Italiana&family=Poiret+One&display=swap";
-document.head.appendChild(fontLink);
+// ── SUPABASE ──
+const SUPA_URL = "https://dvwddroyruwzhidwzuns.supabase.co";
+const SUPA_KEY = "sb_publishable_2-DnlSXlgJ59ykSUeWFMgA_KwDHXFEo";
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
+// ── DESIGN TOKENS ──
 const NAVY   = "#09172A";
 const NAVY2  = "#0D1E38";
 const GOLDW  = "#E2B94E";
@@ -51,6 +61,9 @@ const TYPES = {
 };
 
 const DEFAULT_FEELINGS = ["electric","inspired","tender","curious","restless","joyful","melancholy","grateful"];
+const WEEK_LABELS = ["M","T","W","T","F","S","S"];
+const RANGE_DAYS  = { week:7, month:30, "3month":90, "6month":180, year:365 };
+const RANGE_LABELS= { week:"This week", month:"This month", "3month":"Last 3 months", "6month":"Last 6 months", year:"This year" };
 
 const QUOTES = [
   "The world is full of magic things, patiently waiting for our senses to grow sharper. — W.B. Yeats",
@@ -65,30 +78,7 @@ const QUOTES = [
   "Lucida: the brightest star in any constellation.",
 ];
 
-const INIT_CONS = [
-  { id:"c1", name:"The In-Between Hours", desc:"3am light, the blue moment before dawn, golden hour on a Tuesday", ids:[3,4,5] },
-  { id:"c2", name:"Women Who Don't Apologise", desc:"Power, beauty, intention — figures who own their space", ids:[1,6,8] },
-];
-
-const INIT_SPARKS = [
-  { id:1,  type:"visual",  content:"The way afternoon light hit the water glass — refraction patterns crawling up the wall like something alive.", reflection:"Ordinary objects doing extraordinary things, all the time.", context:"Kitchen, Tuesday afternoon", date:"2026-04-08", feeling:"inspired",   cids:["c2"], grad:"linear-gradient(135deg,#1a3a5c,#2d6a8a,#1a3a5c)" },
-  { id:2,  type:"quote",   content:"The scariest moment is always just before you start. — Stephen King", reflection:"I needed to hear this today.", context:"", date:"2026-04-07", feeling:"curious",   cids:[], grad:"" },
-  { id:3,  type:"sound",   content:"Leaves in the wind outside the back window — that specific rustling, the world exhaling.", reflection:"I could have listened for an hour.", context:"Early morning, still half asleep", date:"2026-04-06", feeling:"tender",   cids:["c1"], grad:"" },
-  { id:4,  type:"music",   content:"Clair de Lune — Debussy", reflection:"How does something this old feel this immediate?", context:"Driving home in the rain", date:"2026-04-05", feeling:"melancholy", cids:["c1"], grad:"" },
-  { id:5,  type:"idea",    content:"A painting series: the in-between hours. 3am light, the blue moment before dawn, golden hour on an ordinary Tuesday.", reflection:"What if each painting came with a sound?", context:"Couldn't sleep, 3am", date:"2026-04-03", feeling:"electric",  cids:["c1"], grad:"" },
-  { id:6,  type:"writing", content:"First line: 'She kept all the doors in the house slightly open, just in case.'", reflection:"In case of what? I don't know yet. That's the story.", context:"", date:"2026-04-01", feeling:"curious",   cids:["c2"], grad:"" },
-  { id:7,  type:"visual",  content:"Teal feathers shot through with gold — the way nature does maximalism better than any designer.", reflection:"Everything I want my paintings to feel like.", context:"AGO, third floor", date:"2026-03-28", feeling:"electric",  cids:[], grad:"linear-gradient(145deg,#1a5c4a,#2d8a6a,#c9a84c)" },
-  { id:8,  type:"quote",   content:"She is not afraid of the wolf. She chose to sit beside him.", reflection:"This is the character I keep painting.", context:"", date:"2026-03-25", feeling:"inspired",  cids:["c2"], grad:"" },
-  { id:9,  type:"music",   content:"Barber's Adagio for Strings", reflection:"Some music makes time stop. This is one of those.", context:"Late night, alone", date:"2026-03-22", feeling:"melancholy", cids:["c1"], grad:"" },
-  { id:10, type:"visual",  content:"The fairy in the moonlit forest — gold spiraling up toward a crescent moon. Three sessions and I still don't know how I made it.", reflection:"Sometimes your hand knows before your mind does.", context:"Studio, 11pm", date:"2026-03-18", feeling:"tender",   cids:[], grad:"linear-gradient(160deg,#0d3348,#1a6a7a,#c9a84c)" },
-  { id:11, type:"idea",    content:"What if the six del Toro rooms were recreated with my own obsessions? Fairy tales, the in-between hours, women who don't apologise, music that breaks you open.", reflection:"This is the app. This is what Lucida is.", context:"Reading about the AGO exhibit", date:"2026-03-15", feeling:"electric",  cids:["c1","c2"], grad:"" },
-  { id:12, type:"writing", content:"'The refraction of light on a glass of water is more interesting than most conversations I've had this week.'", reflection:"", context:"Tuesday morning", date:"2026-03-10", feeling:"restless",  cids:[], grad:"" },
-];
-
-const WEEK_LABELS = ["M","T","W","T","F","S","S"];
-const RANGE_DAYS  = { week:7, month:30, "3month":90, "6month":180, year:365 };
-const RANGE_LABELS= { week:"This week", month:"This month", "3month":"Last 3 months", "6month":"Last 6 months", year:"This year" };
-
+// ── HELPERS ──
 function getMonday() {
   const d=new Date(); const day=d.getDay();
   const diff=d.getDate()-day+(day===0?-6:1);
@@ -100,13 +90,13 @@ function getWeekDays() {
 }
 function daysAgo(n) { const d=new Date(); d.setDate(d.getDate()-n); return d.toLocaleDateString("en-CA"); }
 
+// ── AI FUNCTIONS ──
 async function doTranscribe(b64) {
   try {
     const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,messages:[{role:"user",content:[{type:"image",source:{type:"base64",media_type:"image/jpeg",data:b64}},{type:"text",text:"Transcribe all text in this image exactly as written. Return only the text."}]}]})});
     const d=await r.json(); return d.content?.[0]?.text||"";
   } catch { return ""; }
 }
-
 async function doReflection(sparks, range) {
   try {
     const txt=sparks.slice(0,15).map(s=>s.content).join("\n");
@@ -114,7 +104,6 @@ async function doReflection(sparks, range) {
     const d=await r.json(); return d.content?.[0]?.text||"";
   } catch { return ""; }
 }
-
 async function doConstellationInsight(sparks) {
   try {
     const txt=sparks.map(s=>`[${s.type}] ${s.content}`).join("\n");
@@ -123,6 +112,7 @@ async function doConstellationInsight(sparks) {
   } catch { return ""; }
 }
 
+// ── SVG COMPONENTS ──
 function MoonSVG({size,opacity,color}) {
   return (
     <svg width={size||18} height={size||18} viewBox="0 0 24 24" fill="none" style={{display:"inline-block",verticalAlign:"middle",flexShrink:0}}>
@@ -171,12 +161,191 @@ function Lbl({children,center}) {
 
 const ISty={width:"100%",background:"rgba(9,23,42,0.85)",border:`1px solid ${BORDER}`,borderRadius:"3px",color:TEXT,fontFamily:BODY,outline:"none",boxSizing:"border-box",transition:"border-color 0.25s"};
 
+// ── CONSTELLATION STAR MAP ──
+function ConstellationStarMap({sparks, onSparkClick, width=320, height=380}) {
+  const [activeStar, setActiveStar] = useState(null);
+  const [litLines, setLitLines] = useState([]);
+
+  // Generate stable positions for stars
+  const stars = sparks.map((spark, i) => {
+    const angle = (i / sparks.length) * 2 * Math.PI + (i * 1.618);
+    const r = 80 + (i % 3) * 40 + Math.sin(i * 2.1) * 30;
+    const cx = width/2 + Math.cos(angle) * r * (width/320);
+    const cy = height/2 + Math.sin(angle) * r * (height/380) - 20;
+    const size = 5 + Math.min((spark.content||"").length / 40, 4);
+    return { spark, cx, cy, size, i };
+  });
+
+  function handleStarTap(star) {
+    if (activeStar && activeStar.i === star.i) {
+      // Second tap — open spark
+      onSparkClick(star.spark);
+      setActiveStar(null);
+      setLitLines([]);
+    } else {
+      setActiveStar(star);
+      setLitLines(stars.filter(s=>s.i!==star.i).map(s=>s.i));
+    }
+  }
+
+  return (
+    <div style={{position:"relative",width:"100%",height:`${height}px`,overflow:"hidden"}}>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{position:"absolute",inset:0}}>
+        {/* Connecting lines */}
+        {stars.map((a,ai)=>stars.slice(ai+1).map((b,bi)=>{
+          const isLit = activeStar && (activeStar.i===a.i || activeStar.i===b.i);
+          return (
+            <line key={`${ai}-${bi}`}
+              x1={a.cx} y1={a.cy} x2={b.cx} y2={b.cy}
+              stroke={GOLDW}
+              strokeWidth={isLit?"1.2":"0.5"}
+              opacity={isLit?0.6:0.15}
+              style={{transition:"all 0.4s ease"}}
+            />
+          );
+        }))}
+
+        {/* Stars */}
+        {stars.map(star=>{
+          const isActive = activeStar && activeStar.i===star.i;
+          const c = TYPES[star.spark.type].color;
+          return (
+            <g key={star.i} onClick={()=>handleStarTap(star)} style={{cursor:"pointer"}}>
+              {/* Glow */}
+              <circle cx={star.cx} cy={star.cy} r={star.size+6} fill={c} opacity={isActive?0.2:0.08} style={{transition:"all 0.3s"}}/>
+              {/* Star body */}
+              <circle cx={star.cx} cy={star.cy} r={star.size} fill={c} opacity={isActive?1:0.75} style={{transition:"all 0.3s",filter:isActive?`drop-shadow(0 0 6px ${c})`:"none"}}/>
+              {/* Centre dot */}
+              <circle cx={star.cx} cy={star.cy} r={star.size*0.35} fill="white" opacity={0.9}/>
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Tooltip preview */}
+      {activeStar && (
+        <div style={{position:"absolute",left:`${Math.min(Math.max(activeStar.cx*(100/width),10),75)}%`,top:`${Math.min(activeStar.cy*(100/height)+8,75)}%`,transform:"translateX(-50%)",background:"rgba(9,23,42,0.97)",border:`1px solid ${BORDER}`,borderRadius:"4px",padding:"12px 16px",maxWidth:"200px",minWidth:"160px",zIndex:10,animation:"fadeIn 0.2s ease",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"6px",marginBottom:"6px"}}>
+            <TypeIcon type={activeStar.spark.type} size={14}/>
+            {activeStar.spark.feeling && <span style={{fontSize:"12px",color:TEXTD,fontStyle:"italic"}}>· {activeStar.spark.feeling}</span>}
+          </div>
+          <p style={{margin:"0 0 8px",fontSize:"13px",lineHeight:1.65,color:TEXT,fontStyle:activeStar.spark.type==="quote"?"italic":"normal"}}>
+            {(activeStar.spark.content||"").slice(0,100)}{(activeStar.spark.content||"").length>100?"…":""}
+          </p>
+          <p style={{margin:0,fontSize:"11px",color:GOLDD,letterSpacing:"0.15em",textTransform:"uppercase"}}>tap again to open →</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Mini star map for constellation list cards
+function MiniStarMap({sparkCount, width=80, height=60}) {
+  const count = Math.min(sparkCount, 7);
+  if (count === 0) return null;
+  const stars = Array.from({length:count},(_,i)=>{
+    const angle = (i/count)*2*Math.PI + i*0.8;
+    const r = 16 + (i%2)*10;
+    return { cx: width/2+Math.cos(angle)*r, cy: height/2+Math.sin(angle)*r*0.7 };
+  });
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      {stars.map((a,ai)=>stars.slice(ai+1).map((b,bi)=>(
+        <line key={`${ai}-${bi}`} x1={a.cx} y1={a.cy} x2={b.cx} y2={b.cy} stroke={GOLDW} strokeWidth="0.5" opacity="0.3"/>
+      )))}
+      {stars.map((s,i)=>(
+        <g key={i}>
+          <circle cx={s.cx} cy={s.cy} r={2.5} fill={GOLDW} opacity="0.8"/>
+          <circle cx={s.cx} cy={s.cy} r={1} fill="white" opacity="0.9"/>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+// ── AUTH SCREEN ──
+function AuthScreen({onAuth}) {
+  const [mode, setMode] = useState("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  async function handleSubmit() {
+    setLoading(true); setError(""); setMessage("");
+    if (mode==="login") {
+      const {data,error:e} = await supa.auth.signInWithPassword({email,password});
+      if (e) setError(e.message);
+      else onAuth(data.user);
+    } else {
+      const {data,error:e} = await supa.auth.signUp({email,password,options:{data:{name}}});
+      if (e) setError(e.message);
+      else setMessage("Check your email to confirm your account, then log in.");
+    }
+    setLoading(false);
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:NAVY,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 28px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 50% at 10% 0%,rgba(20,50,85,0.55) 0%,transparent 55%),radial-gradient(ellipse 60% 70% at 90% 100%,rgba(15,30,65,0.6) 0%,transparent 55%)",pointerEvents:"none"}}/>
+      {[[7,9],[91,5],[13,80],[87,68],[48,3],[67,33],[19,48],[59,13]].map(([x,y],i)=>(
+        <div key={i} style={{position:"absolute",left:`${x}%`,top:`${y}%`,pointerEvents:"none",color:GOLDW,fontSize:i%3===0?"5px":"7px",opacity:0.07+i*0.015}}>✦</div>
+      ))}
+
+      <div style={{position:"relative",width:"100%",maxWidth:"400px",animation:"fadeIn 0.5s ease"}}>
+        <div style={{textAlign:"center",marginBottom:"40px"}}>
+          <MoonSVG size={32} opacity={0.9}/>
+          <h1 style={{margin:"12px 0 6px",fontSize:"36px",color:GOLDW,fontFamily:DISPLAY,letterSpacing:"0.3em",textTransform:"uppercase"}}>Lucida</h1>
+          <p style={{fontSize:"14px",color:TEXTDD,letterSpacing:"0.15em",textTransform:"uppercase"}}>Capture the light. Connect the stars.</p>
+        </div>
+
+        <GoldLine/>
+        <div style={{padding:"32px 0"}}>
+          <Lbl center>{mode==="login"?"Welcome back":"Create your sanctuary"}</Lbl>
+
+          {mode==="signup" && (
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="Your name" style={{...ISty,fontSize:"16px",padding:"13px 16px",marginBottom:"12px",textAlign:"center"}}
+              onFocus={e=>e.target.style.borderColor=GOLDD} onBlur={e=>e.target.style.borderColor=BORDER}/>
+          )}
+          <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" style={{...ISty,fontSize:"16px",padding:"13px 16px",marginBottom:"12px",textAlign:"center"}}
+            onFocus={e=>e.target.style.borderColor=GOLDD} onBlur={e=>e.target.style.borderColor=BORDER}/>
+          <input value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" type="password" style={{...ISty,fontSize:"16px",padding:"13px 16px",marginBottom:"20px",textAlign:"center"}}
+            onFocus={e=>e.target.style.borderColor=GOLDD} onBlur={e=>e.target.style.borderColor=BORDER}
+            onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
+
+          {error && <p style={{color:"#D4707F",fontSize:"14px",textAlign:"center",marginBottom:"14px",fontStyle:"italic"}}>{error}</p>}
+          {message && <p style={{color:GOLDW,fontSize:"14px",textAlign:"center",marginBottom:"14px",fontStyle:"italic"}}>{message}</p>}
+
+          <div style={{textAlign:"center",marginBottom:"16px"}}>
+            <PBtn onClick={handleSubmit} disabled={loading}>
+              {loading?"...":(mode==="login"?"Sign in":"Create account")}
+            </PBtn>
+          </div>
+
+          <p style={{textAlign:"center",fontSize:"14px",color:TEXTDD}}>
+            {mode==="login"?"New to Lucida? ":"Already have an account? "}
+            <button onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");setMessage("");}} style={{background:"none",border:"none",color:GOLDD,cursor:"pointer",fontFamily:BODY,fontSize:"14px",textDecoration:"underline"}}>
+              {mode==="login"?"Create an account":"Sign in"}
+            </button>
+          </p>
+        </div>
+        <GoldLine/>
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP ──
 function Lucida() {
+  const [user, setUser]             = useState(null);
+  const [loading, setLoading]       = useState(true);
   const [tab, setTab]               = useState("home");
-  const [sparks, setSparks]         = useState(INIT_SPARKS);
-  const [cons, setCons]             = useState(INIT_CONS);
+  const [sparks, setSparks]         = useState([]);
+  const [cons, setCons]             = useState([]);
   const [feelings, setFeelings]     = useState(DEFAULT_FEELINGS);
-  const [rediscover, setRediscover] = useState(INIT_SPARKS[2]);
+  const [rediscover, setRediscover] = useState(null);
   const [openSpark, setOpenSpark]   = useState(null);
   const [editMode, setEditMode]     = useState(false);
   const [editData, setEditData]     = useState(null);
@@ -202,8 +371,9 @@ function Lucida() {
   const [storyShareOpen, setStoryShareOpen] = useState(false);
   const [customFeeling, setCustomFeeling] = useState("");
   const [showFeelingInput, setShowFeelingInput] = useState(false);
-  const [newSpark, setNewSpark]     = useState({type:"idea",content:"",feeling:"inspired",reflection:"",context:"",image:null,audio:null,musicLink:"",cids:[]});
+  const [newSpark, setNewSpark]     = useState({type:"idea",content:"",feeling:"inspired",reflection:"",context:"",audio:null,musicLink:"",cids:[]});
   const [step, setStep]             = useState(1);
+  const [saving, setSaving]         = useState(false);
   const [saved, setSaved]           = useState(false);
   const [savedId, setSavedId]       = useState(null);
   const [showTag, setShowTag]       = useState(false);
@@ -212,71 +382,146 @@ function Lucida() {
   const [audioURL, setAudioURL]     = useState(null);
   const [transcribing, setTranscribing] = useState(false);
   const [conTooltip, setConTooltip] = useState(null);
-  const [capturedDays, setCapturedDays] = useState({});
   const [weekDays]                  = useState(getWeekDays());
   const [seed]                      = useState(Math.random());
 
   const mediaRef=useRef(null); const timerRef=useRef(null); const chunksRef=useRef([]);
-  const imgRef=useRef(); const audioRef=useRef(); const transRef=useRef();
+  const audioRef=useRef(); const transRef=useRef();
 
-  useEffect(()=>{ return ()=>{ if(timerRef.current) clearInterval(timerRef.current); }; },[]);
-
-  const blank={type:"idea",content:"",feeling:"inspired",reflection:"",context:"",image:null,audio:null,musicLink:"",cids:[]};
-
-  function goCapture(type) { setNewSpark({...blank,type}); setStep(1); setAudioURL(null); setSaved(false); setShowTag(false); setTab("capture"); }
-  const canSave=newSpark.content.trim()||newSpark.audio||newSpark.musicLink.trim();
-
-  function doSave() {
-    if(!canSave)return;
-    const id=Date.now(); const today=new Date().toLocaleDateString("en-CA");
-    const s={id,...newSpark,date:today,grad:""};
-    setSparks(p=>[s,...p]);
-    newSpark.cids.forEach(cid=>setCons(p=>p.map(c=>c.id===cid?{...c,ids:[...c.ids,id]}:c)));
-    setCapturedDays(p=>({...p,[today]:true}));
-    setSavedId(id); setSaved(true);
-    setTimeout(()=>{ setSaved(false); setShowTag(true); },900);
-  }
-
-  function finishCapture() { setShowTag(false); setSavedId(null); setRediscover(sparks[Math.floor(Math.random()*sparks.length)]); setTab("home"); }
-
-  function tagSaved(cid) {
-    if(!savedId)return;
-    setSparks(p=>p.map(s=>{ if(s.id!==savedId)return s; const has=s.cids.includes(cid); return{...s,cids:has?s.cids.filter(i=>i!==cid):[...s.cids,cid]}; }));
-    setCons(p=>p.map(c=>{ if(c.id!==cid)return c; const has=c.ids.includes(savedId); return{...c,ids:has?c.ids.filter(i=>i!==savedId):[...c.ids,savedId]}; }));
-  }
-
-  function toggleConSpark(sid,cid) {
-    setSparks(p=>p.map(s=>{ if(s.id!==sid)return s; const has=s.cids.includes(cid); return{...s,cids:has?s.cids.filter(i=>i!==cid):[...s.cids,cid]}; }));
-    setCons(p=>p.map(c=>{ if(c.id!==cid)return c; const has=c.ids.includes(sid); return{...c,ids:has?c.ids.filter(i=>i!==sid):[...c.ids,sid]}; }));
-    setOpenSpark(prev=>{ if(!prev||prev.id!==sid)return prev; const has=prev.cids.includes(cid); return{...prev,cids:has?prev.cids.filter(i=>i!==cid):[...prev.cids,cid]}; });
-  }
-
-  function doDelete(id) { setSparks(p=>p.filter(s=>s.id!==id)); setCons(p=>p.map(c=>({...c,ids:c.ids.filter(i=>i!==id)}))); setOpenSpark(null); setDelConfirm(null); }
-
-  function saveEdit() {
-    if(!editData)return;
-    setSparks(p=>p.map(s=>s.id===editData.id?editData:s));
-    cons.forEach(c=>{
-      const wasIn=c.ids.includes(editData.id); const nowIn=editData.cids.includes(c.id);
-      if(wasIn&&!nowIn) setCons(p=>p.map(x=>x.id===c.id?{...x,ids:x.ids.filter(i=>i!==editData.id)}:x));
-      if(!wasIn&&nowIn) setCons(p=>p.map(x=>x.id===c.id?{...x,ids:[...x.ids,editData.id]}:x));
+  // Auth check on mount
+  useEffect(()=>{
+    supa.auth.getSession().then(({data:{session}})=>{
+      setUser(session?.user||null); setLoading(false);
     });
-    setOpenSpark(editData); setEditMode(false);
+    const {data:{subscription}} = supa.auth.onAuthStateChange((_,session)=>{
+      setUser(session?.user||null);
+    });
+    return ()=>subscription.unsubscribe();
+  },[]);
+
+  // Load data when user logs in
+  useEffect(()=>{
+    if (!user) return;
+    loadSparks(); loadCons();
+  },[user]);
+
+  async function loadSparks() {
+    const {data} = await supa.from("sparks").select("*").order("created_at",{ascending:false});
+    if (data) {
+      setSparks(data.map(s=>({...s,cids:s.cids||[]})));
+      if (data.length>0) setRediscover(data[Math.floor(Math.random()*data.length)]);
+    }
   }
 
-  function createCon() { if(!newConName.trim())return; setCons(p=>[...p,{id:`c${Date.now()}`,name:newConName.trim(),desc:newConDesc.trim(),ids:[]}]); setNewConName(""); setNewConDesc(""); setShowNewCon(false); }
+  async function loadCons() {
+    const {data} = await supa.from("constellations").select("*").order("created_at",{ascending:false});
+    if (data) setCons(data.map(c=>({...c,ids:c.spark_ids||[]})));
+  }
 
-  function saveRandCon() {
-    if(!randCon)return;
-    const name=`Constellation ${cons.length+1}`;
-    const newC={id:`c${Date.now()}`,name,desc:"Saved from Random Constellation",ids:randCon.sparks.map(s=>s.id)};
-    setCons(p=>[...p,newC]);
-    randCon.sparks.forEach(s=>setSparks(p=>p.map(x=>x.id===s.id?{...x,cids:[...x.cids,newC.id]}:x)));
+  async function saveSpark() {
+    if (!canSave||saving) return;
+    setSaving(true);
+    const today = new Date().toLocaleDateString("en-CA");
+    const {data,error} = await supa.from("sparks").insert([{
+      user_id: user.id,
+      type: newSpark.type,
+      content: newSpark.content,
+      reflection: newSpark.reflection,
+      context: newSpark.context,
+      feeling: newSpark.feeling,
+      date: today,
+      grad: "",
+      music_link: newSpark.musicLink,
+      cids: newSpark.cids,
+    }]).select().single();
+
+    if (!error && data) {
+      const s = {...data, cids: data.cids||[]};
+      setSparks(p=>[s,...p]);
+      setRediscover(s);
+      setSavedId(data.id);
+      setSaved(true);
+      setSaving(false);
+      setTimeout(()=>{ setSaved(false); setShowTag(true); }, 900);
+    } else {
+      setSaving(false);
+    }
+  }
+
+  async function updateSpark(sparkData) {
+    const {data,error} = await supa.from("sparks").update({
+      content: sparkData.content,
+      reflection: sparkData.reflection,
+      context: sparkData.context,
+      feeling: sparkData.feeling,
+      cids: sparkData.cids,
+    }).eq("id",sparkData.id).select().single();
+    if (!error && data) {
+      const updated = {...data,cids:data.cids||[]};
+      setSparks(p=>p.map(s=>s.id===updated.id?updated:s));
+      setOpenSpark(updated);
+    }
+    setEditMode(false);
+  }
+
+  async function deleteSpark(id) {
+    await supa.from("sparks").delete().eq("id",id);
+    setSparks(p=>p.filter(s=>s.id!==id));
+    setCons(p=>p.map(c=>({...c,ids:c.ids.filter(i=>i!==id),spark_ids:c.spark_ids.filter(i=>i!==id)})));
+    setOpenSpark(null); setDelConfirm(null);
+  }
+
+  async function createCon() {
+    if (!newConName.trim()) return;
+    const {data,error} = await supa.from("constellations").insert([{
+      user_id: user.id,
+      name: newConName.trim(),
+      description: newConDesc.trim(),
+      spark_ids: [],
+    }]).select().single();
+    if (!error && data) setCons(p=>[...p,{...data,ids:[]}]);
+    setNewConName(""); setNewConDesc(""); setShowNewCon(false);
+  }
+
+  async function tagSparkToCon(sparkId, conId, add) {
+    const spark = sparks.find(s=>s.id===sparkId);
+    const con = cons.find(c=>c.id===conId);
+    if (!spark||!con) return;
+
+    const newCids = add ? [...(spark.cids||[]),conId] : (spark.cids||[]).filter(i=>i!==conId);
+    const newIds  = add ? [...(con.ids||[]),sparkId] : (con.ids||[]).filter(i=>i!==sparkId);
+
+    await supa.from("sparks").update({cids:newCids}).eq("id",sparkId);
+    await supa.from("constellations").update({spark_ids:newIds}).eq("id",conId);
+
+    setSparks(p=>p.map(s=>s.id===sparkId?{...s,cids:newCids}:s));
+    setCons(p=>p.map(c=>c.id===conId?{...c,ids:newIds,spark_ids:newIds}:c));
+    setOpenSpark(prev=>prev&&prev.id===sparkId?{...prev,cids:newCids}:prev);
+  }
+
+  async function tagSaved(cid) {
+    if (!savedId) return;
+    const spark = sparks.find(s=>s.id===savedId);
+    if (!spark) return;
+    const has = (spark.cids||[]).includes(cid);
+    await tagSparkToCon(savedId, cid, !has);
+  }
+
+  async function saveRandCon() {
+    if (!randCon) return;
+    const name = `Constellation ${cons.length+1}`;
+    const ids = randCon.sparks.map(s=>s.id);
+    const {data,error} = await supa.from("constellations").insert([{user_id:user.id,name,description:"Saved from Random Constellation",spark_ids:ids}]).select().single();
+    if (!error && data) {
+      setCons(p=>[...p,{...data,ids}]);
+      for (const s of randCon.sparks) {
+        const newCids = [...(s.cids||[]),data.id];
+        await supa.from("sparks").update({cids:newCids}).eq("id",s.id);
+        setSparks(p=>p.map(x=>x.id===s.id?{...x,cids:newCids}:x));
+      }
+    }
     setShowRand(false);
   }
-
-  async function genRandom() { const picked=[...sparks].sort(()=>Math.random()-0.5).slice(0,5); const q=QUOTES[Math.floor(Math.random()*QUOTES.length)]; setRandCon({sparks:picked,quote:q}); setRandInsight(""); setShowRand(true); }
-  async function getInsight() { if(!randCon)return; setLoadingInsight(true); const t=await doConstellationInsight(randCon.sparks); setRandInsight(t); setLoadingInsight(false); }
 
   async function loadStory() {
     setLoadingStory(true);
@@ -286,6 +531,20 @@ function Lucida() {
     const t=await doReflection(filtered,rangeLabel);
     setStoryText(t); setLoadingStory(false);
   }
+
+  function finishCapture() {
+    setShowTag(false); setSavedId(null);
+    setNewSpark({type:"idea",content:"",feeling:"inspired",reflection:"",context:"",audio:null,musicLink:"",cids:[]});
+    setStep(1);
+    setTab("home");
+  }
+
+  async function genRandom() {
+    const picked=[...sparks].sort(()=>Math.random()-0.5).slice(0,5);
+    const q=QUOTES[Math.floor(Math.random()*QUOTES.length)];
+    setRandCon({sparks:picked,quote:q}); setRandInsight(""); setShowRand(true);
+  }
+  async function getInsight() { if(!randCon)return; setLoadingInsight(true); const t=await doConstellationInsight(randCon.sparks); setRandInsight(t); setLoadingInsight(false); }
 
   async function startRec() {
     try {
@@ -297,12 +556,10 @@ function Lucida() {
       timerRef.current=setInterval(()=>setRecSecs(s=>s+1),1000);
     } catch { alert("Microphone access needed."); }
   }
-
   function stopRec() { if(mediaRef.current&&recording){mediaRef.current.stop();setRecording(false);clearInterval(timerRef.current);} }
   function fmtTime(s){return`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;}
   function handleAudio(e){const f=e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);setAudioURL(url);setNewSpark(n=>({...n,audio:url}));}
   function handleTrans(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=async ev=>{const b64=ev.target.result.split(",")[1];setTranscribing(true);const t=await doTranscribe(b64);setNewSpark(n=>({...n,content:t}));setTranscribing(false);};reader.readAsDataURL(f);}
-  function handleImg(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=ev=>setNewSpark(n=>({...n,image:ev.target.result}));reader.readAsDataURL(f);}
 
   function addCustomFeeling(isEdit) {
     const m=customFeeling.trim().toLowerCase();
@@ -312,13 +569,7 @@ function Lucida() {
     setCustomFeeling(""); setShowFeelingInput(false);
   }
 
-  // Navigate to gallery filtered by feeling
-  function goToGalleryByFeeling(f) {
-    setFeelingFilter(f);
-    setFilter("all");
-    setTab("gallery");
-    setOpenCon(null);
-  }
+  function goToGalleryByFeeling(f) { setFeelingFilter(f); setFilter("all"); setTab("gallery"); setOpenCon(null); }
 
   function getItems() {
     let items=openCon?sparks.filter(s=>openCon.ids.includes(s.id)):[...sparks];
@@ -331,20 +582,14 @@ function Lucida() {
     return items;
   }
 
-  // Story range computed sparks
-  const storyCutoff = daysAgo(RANGE_DAYS[storyRange]||30);
-  const storySparks = sparks.filter(s=>s.date>=storyCutoff);
-  const storyWeekDays = getWeekDays();
-  const storyWeekDots = storyWeekDays.map(d=>sparks.some(s=>s.date===d));
-
+  const canSave=newSpark.content.trim()||newSpark.audio||newSpark.musicLink.trim();
+  const storyCutoff=daysAgo(RANGE_DAYS[storyRange]||30);
+  const storySparks=sparks.filter(s=>s.date>=storyCutoff);
   const byType=Object.keys(TYPES).map(t=>({type:t,count:storySparks.filter(s=>s.type===t).length})).sort((a,b)=>b.count-a.count);
   const byFeeling=feelings.map(f=>({feeling:f,count:storySparks.filter(s=>s.feeling===f).length})).sort((a,b)=>b.count-a.count).slice(0,6);
-
   const today=new Date().toLocaleDateString("en-CA");
-  const weekDots=weekDays.map(d=>capturedDays[d]||sparks.some(s=>s.date===d));
+  const weekDots=weekDays.map(d=>sparks.some(s=>s.date===d));
   const weekCount=weekDots.filter(Boolean).length;
-  const storyWeekCount=storyWeekDots.filter(Boolean).length;
-
   const capturePrompt={sound:"What did you hear?",music:"What's the music?",quote:"What are the words?",visual:"What did you see?",writing:"What did you write?",idea:"What caught you?"};
 
   function FeelingSection({value,onChange,isEdit}) {
@@ -367,10 +612,18 @@ function Lucida() {
     );
   }
 
+  if (loading) return (
+    <div style={{minHeight:"100vh",background:NAVY,display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <MoonSVG size={32} opacity={0.5}/>
+    </div>
+  );
+
+  if (!user) return <AuthScreen onAuth={u=>setUser(u)}/>;
+
+  const userName = user.user_metadata?.name || user.email?.split("@")[0] || "Gillian";
+
   return (
     <div style={{minHeight:"100vh",background:NAVY,fontFamily:BODY,color:TEXT,position:"relative",overflowX:"hidden"}}>
-
-      {/* Atmosphere */}
       <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0,background:"radial-gradient(ellipse 80% 50% at 10% 0%,rgba(20,50,85,0.55) 0%,transparent 55%),radial-gradient(ellipse 60% 70% at 90% 100%,rgba(15,30,65,0.6) 0%,transparent 55%)"}}/>
       {[[7,9],[91,5],[13,80],[87,68],[48,3],[67,33],[19,48],[59,13],[28,65],[78,44]].map(([x,y],i)=>(
         <div key={i} style={{position:"fixed",left:`${x}%`,top:`${y}%`,pointerEvents:"none",zIndex:0,color:GOLDW,fontSize:i%3===0?"5px":"7px",opacity:0.07+i*0.015}}>✦</div>
@@ -383,17 +636,18 @@ function Lucida() {
           <div style={{display:"flex",alignItems:"center",gap:"9px"}}>
             <MoonSVG size={17} opacity={0.95}/>
             <span style={{fontSize:"20px",letterSpacing:"0.38em",textTransform:"uppercase",color:GOLDW,fontFamily:DISPLAY}}>Lucida</span>
-            <span style={{fontSize:"14px",color:TEXTDD,letterSpacing:"0.06em"}}>· Gillian</span>
+            <span style={{fontSize:"14px",color:TEXTDD,letterSpacing:"0.06em"}}>· {userName}</span>
           </div>
-          <span style={{fontSize:"13px",color:TEXTDD}}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric"})}</span>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <span style={{fontSize:"13px",color:TEXTDD}}>{new Date().toLocaleDateString("en-US",{month:"long",day:"numeric"})}</span>
+            <button onClick={()=>supa.auth.signOut()} style={{background:"transparent",border:"none",color:TEXTDD,fontSize:"12px",cursor:"pointer",fontFamily:BODY,letterSpacing:"0.1em"}}>Sign out</button>
+          </div>
         </div>
         <GoldLine/>
 
         {/* ══ HOME ══ */}
         {tab==="home" && (
           <div style={{paddingTop:"28px"}}>
-
-            {/* Rediscover — fixed height scrollable */}
             {rediscover && (
               <div style={{marginBottom:"28px"}}>
                 <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"8px",marginBottom:"14px"}}>
@@ -407,7 +661,6 @@ function Lucida() {
                   <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 50% at 25% 35%,rgba(212,168,67,0.08) 0%,transparent 65%)",pointerEvents:"none"}}/>
                   <div style={{position:"absolute",top:"-15px",right:"-15px",opacity:0.06}}><MoonSVG size={90} opacity={1}/></div>
                   <div style={{padding:"16px 22px 0"}}><GoldLine/></div>
-                  {/* Fixed height scrollable */}
                   <div style={{height:"220px",overflowY:"auto",padding:"16px 26px",scrollbarWidth:"none"}}>
                     <div style={{textAlign:"center"}}>
                       <div style={{display:"flex",justifyContent:"center",gap:"10px",alignItems:"center",marginBottom:"14px"}}>
@@ -427,18 +680,24 @@ function Lucida() {
                   <div style={{padding:"0 22px 16px"}}><GoldLine/></div>
                 </div>
                 <div style={{textAlign:"center",marginTop:"10px"}}>
-                  <button onClick={e=>{e.stopPropagation();const o=sparks.filter(s=>s.id!==rediscover.id);setRediscover(o[Math.floor(Math.random()*o.length)]);}} style={{background:"transparent",border:"none",color:GOLDD,fontSize:"13px",letterSpacing:"0.22em",textTransform:"uppercase",cursor:"pointer",fontFamily:BODY,padding:0}}>another spark →</button>
+                  <button onClick={e=>{e.stopPropagation();const o=sparks.filter(s=>s.id!==rediscover.id);if(o.length>0)setRediscover(o[Math.floor(Math.random()*o.length)]);}} style={{background:"transparent",border:"none",color:GOLDD,fontSize:"13px",letterSpacing:"0.22em",textTransform:"uppercase",cursor:"pointer",fontFamily:BODY,padding:0}}>another spark →</button>
                 </div>
               </div>
             )}
 
-            {/* Capture strip — tactile */}
+            {sparks.length===0 && (
+              <div style={{textAlign:"center",padding:"20px 0 28px"}}>
+                <p style={{fontSize:"18px",color:TEXTD,fontStyle:"italic",lineHeight:1.7}}>The sky is ready.<br/>Capture your first spark.</p>
+              </div>
+            )}
+
+            {/* Capture buttons */}
             <div style={{marginBottom:"26px"}}>
               <GoldLine/>
               <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:"8px",padding:"12px 0"}}>
                 {Object.entries(TYPES).map(([key,t])=>(
-                  <button key={key} onClick={()=>goCapture(key)} style={{padding:"14px 4px 12px",background:"linear-gradient(180deg,rgba(22,44,88,0.92) 0%,rgba(10,22,44,0.97) 100%)",border:`1px solid ${BORDER}`,borderRadius:"6px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:"7px",boxShadow:"0 3px 8px rgba(0,0,0,0.45),inset 0 1px 0 rgba(226,185,78,0.22)",transition:"all 0.15s",outline:"none"}}
-                    onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 5px 14px rgba(0,0,0,0.55),inset 0 1px 0 rgba(226,185,78,0.38),0 0 12px rgba(226,185,78,0.14)";e.currentTarget.style.borderColor=t.color;e.currentTarget.style.transform="translateY(-1px)";}}
+                  <button key={key} onClick={()=>{setNewSpark({type:key,content:"",feeling:"inspired",reflection:"",context:"",audio:null,musicLink:"",cids:[]});setStep(1);setAudioURL(null);setSaved(false);setShowTag(false);setTab("capture");}} style={{padding:"14px 4px 12px",background:"linear-gradient(180deg,rgba(22,44,88,0.92) 0%,rgba(10,22,44,0.97) 100%)",border:`1px solid ${BORDER}`,borderRadius:"6px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:"7px",boxShadow:"0 3px 8px rgba(0,0,0,0.45),inset 0 1px 0 rgba(226,185,78,0.22)",transition:"all 0.15s",outline:"none"}}
+                    onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 5px 14px rgba(0,0,0,0.55),inset 0 1px 0 rgba(226,185,78,0.38)";e.currentTarget.style.borderColor=t.color;e.currentTarget.style.transform="translateY(-1px)";}}
                     onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 3px 8px rgba(0,0,0,0.45),inset 0 1px 0 rgba(226,185,78,0.22)";e.currentTarget.style.borderColor=BORDER;e.currentTarget.style.transform="translateY(0)";}}
                     onMouseDown={e=>e.currentTarget.style.transform="translateY(1px)"}
                     onMouseUp={e=>e.currentTarget.style.transform="translateY(-1px)"}>
@@ -450,7 +709,7 @@ function Lucida() {
               <GoldLine/>
             </div>
 
-            {/* Weekly streak */}
+            {/* Streak */}
             <div style={{textAlign:"center"}}>
               <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"8px",marginBottom:"16px"}}>
                 <MoonSVG size={14} opacity={0.8}/>
@@ -472,11 +731,10 @@ function Lucida() {
         {/* ══ GALLERY ══ */}
         {tab==="gallery" && !openCon && (
           <div style={{paddingTop:"24px"}}>
-            {/* Feeling filter active banner */}
             {feelingFilter && (
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"14px",padding:"10px 14px",background:"rgba(226,185,78,0.08)",border:`1px solid ${BORDER}`,borderRadius:"3px"}}>
                 <span style={{fontSize:"14px",color:GOLDW,fontStyle:"italic"}}>Feeling: {feelingFilter}</span>
-                <button onClick={()=>setFeelingFilter(null)} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"13px",cursor:"pointer",fontFamily:BODY,padding:0,letterSpacing:"0.1em"}}>Clear ×</button>
+                <button onClick={()=>setFeelingFilter(null)} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"13px",cursor:"pointer",fontFamily:BODY,padding:0}}>Clear ×</button>
               </div>
             )}
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
@@ -485,18 +743,13 @@ function Lucida() {
                 {showSearch && <input autoFocus value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={{...ISty,fontSize:"14px",padding:"7px 12px",width:"140px"}} onBlur={()=>{if(!search)setShowSearch(false);}}/>}
                 <button onClick={()=>setShowSearch(s=>!s)} style={{background:"transparent",border:"none",color:showSearch?GOLDW:GOLDD,cursor:"pointer",fontSize:"18px",padding:"4px",display:"flex",alignItems:"center"}}>⌕</button>
                 <div style={{position:"relative"}}>
-                  <button onClick={()=>setShowSort(s=>!s)} style={{background:"transparent",border:"none",cursor:"pointer",padding:"4px",display:"flex",alignItems:"center"}}>
-                    <SortIcon color={showSort?GOLDW:GOLDD}/>
-                  </button>
+                  <button onClick={()=>setShowSort(s=>!s)} style={{background:"transparent",border:"none",cursor:"pointer",padding:"4px",display:"flex",alignItems:"center"}}><SortIcon color={showSort?GOLDW:GOLDD}/></button>
                   {showSort && (
                     <div style={{position:"absolute",right:0,top:"100%",marginTop:"6px",background:NAVY2,border:`1px solid ${BORDER}`,borderRadius:"4px",zIndex:50,minWidth:"150px",overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
-                      <div style={{padding:"10px 16px 6px",borderBottom:`1px solid ${BORDER}`}}>
-                        <p style={{margin:0,fontSize:"10px",letterSpacing:"0.25em",textTransform:"uppercase",color:GOLDD,fontFamily:BODY}}>Order by</p>
-                      </div>
+                      <div style={{padding:"10px 16px 6px",borderBottom:`1px solid ${BORDER}`}}><p style={{margin:0,fontSize:"10px",letterSpacing:"0.25em",textTransform:"uppercase",color:GOLDD,fontFamily:BODY}}>Order by</p></div>
                       {[["random","✦ Random"],["newest","Newest first"],["oldest","Oldest first"]].map(([o,lbl])=>(
                         <button key={o} onClick={()=>{setSort(o);setShowSort(false);}} style={{display:"flex",alignItems:"center",gap:"10px",width:"100%",padding:"11px 16px",background:sort===o?"rgba(226,185,78,0.08)":"transparent",border:"none",color:sort===o?GOLDW:TEXTD,fontSize:"14px",cursor:"pointer",fontFamily:BODY,textAlign:"left"}}>
-                          {sort===o && <span style={{color:GOLDW,fontSize:"10px"}}>●</span>}
-                          {lbl}
+                          {sort===o && <span style={{color:GOLDW,fontSize:"10px"}}>●</span>}{lbl}
                         </button>
                       ))}
                     </div>
@@ -505,26 +758,22 @@ function Lucida() {
               </div>
             </div>
 
-            {/* Filter buttons */}
             <div style={{display:"flex",gap:"8px",marginBottom:"20px",flexWrap:"wrap"}}>
               {[["all","All",GOLDD,null],...Object.entries(TYPES).map(([k,v])=>[k,v.label,v.color,k])].map(([key,lbl,color,typeKey])=>(
                 <button key={key} onClick={()=>setFilter(key)} style={{padding:"8px 14px",cursor:"pointer",fontFamily:BODY,fontSize:"13px",letterSpacing:"0.08em",background:filter===key?"rgba(226,185,78,0.1)":"transparent",border:`1px solid ${filter===key?color:BORDER}`,borderRadius:"3px",color:filter===key?color:TEXTD,transition:"all 0.2s",display:"flex",alignItems:"center",gap:"6px"}}>
-                  {typeKey && <TypeIcon type={typeKey} color={color} size={14}/>}
-                  {lbl}
+                  {typeKey && <TypeIcon type={typeKey} color={color} size={14}/>}{lbl}
                 </button>
               ))}
             </div>
 
-            {/* Grid */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px"}}>
               {getItems().map((spark,i)=>{
-                const large=!!spark.grad||(spark.type==="quote"&&spark.content.length>120)||spark.content.length>200||i%8===0;
-                const sparkCons=cons.filter(c=>spark.cids.includes(c.id));
+                const large=!!spark.grad||(spark.type==="quote"&&(spark.content||"").length>120)||(spark.content||"").length>200||i%8===0;
+                const sparkCons=cons.filter(c=>(spark.cids||[]).includes(c.id));
                 return (
                   <div key={spark.id} style={{gridColumn:large?"1 / -1":"auto",cursor:"pointer"}} onClick={()=>{setOpenSpark(spark);setEditMode(false);}}>
                     <div style={{padding:large?"22px":"15px",background:"linear-gradient(135deg,rgba(16,32,58,0.96),rgba(9,23,42,0.99))",border:`1px solid ${BORDER}`,borderLeft:`2px solid ${TYPES[spark.type].color}`,borderRadius:"4px",boxShadow:"0 2px 12px rgba(0,0,0,0.35)",height:"100%",boxSizing:"border-box",position:"relative"}}>
                       {spark.grad && <div style={{width:"100%",height:large?"150px":"80px",background:spark.grad,borderRadius:"3px",marginBottom:"12px",opacity:0.75}}/>}
-                      {spark.image && <img src={spark.image} alt="" style={{width:"100%",borderRadius:"3px",marginBottom:"12px",display:"block"}}/>}
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"10px"}}>
                         <TypeIcon type={spark.type}/>
                         <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
@@ -538,7 +787,7 @@ function Lucida() {
                               )}
                             </div>
                           )}
-                          <button onClick={e=>{e.stopPropagation();setOpenSpark(spark);setEditData({...spark});setEditMode(true);}} style={{background:"transparent",border:"none",color:TEXTDD,fontSize:"14px",cursor:"pointer",padding:"2px",lineHeight:1,transition:"color 0.2s"}} onMouseEnter={e=>e.target.style.color=TEXT} onMouseLeave={e=>e.target.style.color=TEXTDD}>✎</button>
+                          <button onClick={e=>{e.stopPropagation();setOpenSpark(spark);setEditData({...spark,cids:[...(spark.cids||[])]});setEditMode(true);}} style={{background:"transparent",border:"none",color:TEXTDD,fontSize:"14px",cursor:"pointer",padding:"2px",lineHeight:1,transition:"color 0.2s"}} onMouseEnter={e=>e.target.style.color=TEXT} onMouseLeave={e=>e.target.style.color=TEXTDD}>✎</button>
                         </div>
                       </div>
                       <p style={{margin:"0 0 8px",fontSize:large?"17px":"15px",lineHeight:1.75,color:TEXT,fontStyle:spark.type==="quote"?"italic":"normal"}}>{spark.content}</p>
@@ -551,42 +800,44 @@ function Lucida() {
                 );
               })}
             </div>
-            {getItems().length===0 && <div style={{textAlign:"center",paddingTop:"60px"}}><MoonSVG size={36} opacity={0.25}/><p style={{color:TEXTD,fontStyle:"italic",marginTop:"16px",fontSize:"17px"}}>No sparks found.</p></div>}
+            {getItems().length===0 && <div style={{textAlign:"center",paddingTop:"60px"}}><MoonSVG size={36} opacity={0.25}/><p style={{color:TEXTD,fontStyle:"italic",marginTop:"16px",fontSize:"17px"}}>No sparks yet.</p></div>}
           </div>
         )}
 
-        {/* Constellation room */}
+        {/* ══ CONSTELLATION STAR MAP ROOM ══ */}
         {openCon && (tab==="gallery"||tab==="constellations") && (
           <div style={{paddingTop:"24px"}}>
             <button onClick={()=>setOpenCon(null)} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"13px",letterSpacing:"0.18em",cursor:"pointer",fontFamily:BODY,padding:"0 0 20px",textTransform:"uppercase"}}>← Back</button>
-            <div style={{textAlign:"center",marginBottom:"28px"}}>
-              <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
+            <div style={{textAlign:"center",marginBottom:"20px"}}>
+              <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"10px",marginBottom:"8px"}}>
                 <MoonSVG size={20} opacity={0.85}/>
                 <h2 style={{margin:0,fontSize:"26px",color:TEXT,fontWeight:"normal",letterSpacing:"0.04em",fontFamily:DISPLAY}}>{openCon.name}</h2>
               </div>
-              {openCon.desc && <p style={{margin:"0 auto",fontSize:"16px",color:TEXTD,fontStyle:"italic",maxWidth:"420px",lineHeight:1.7}}>{openCon.desc}</p>}
-              <p style={{margin:"10px 0 0",fontSize:"13px",color:TEXTDD}}>{openCon.ids.length} {openCon.ids.length===1?"spark":"sparks"}</p>
+              {openCon.description && <p style={{margin:"0 auto",fontSize:"16px",color:TEXTD,fontStyle:"italic",maxWidth:"420px",lineHeight:1.7}}>{openCon.description}</p>}
+              <p style={{margin:"8px 0 0",fontSize:"13px",color:TEXTDD}}>{openCon.ids.length} {openCon.ids.length===1?"spark":"sparks"}</p>
             </div>
             <GoldLine/>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginTop:"20px"}}>
-              {sparks.filter(s=>openCon.ids.includes(s.id)).map((spark,i)=>{
-                const large=!!spark.grad||spark.content.length>150||i%5===0;
-                return (
-                  <div key={spark.id} style={{gridColumn:large?"1 / -1":"auto",cursor:"pointer"}} onClick={()=>setOpenSpark(spark)}>
-                    <div style={{padding:large?"20px":"14px",background:"linear-gradient(135deg,rgba(16,32,58,0.96),rgba(9,23,42,0.99))",border:`1px solid ${BORDER}`,borderLeft:`2px solid ${TYPES[spark.type].color}`,borderRadius:"4px",height:"100%",boxSizing:"border-box"}}>
-                      {spark.grad && <div style={{width:"100%",height:"100px",background:spark.grad,borderRadius:"3px",marginBottom:"10px",opacity:0.7}}/>}
-                      <div style={{marginBottom:"8px"}}><TypeIcon type={spark.type}/></div>
-                      <p style={{margin:"0 0 6px",fontSize:large?"16px":"14px",lineHeight:1.7,color:TEXT,fontStyle:spark.type==="quote"?"italic":"normal"}}>{spark.content}</p>
-                      <span style={{fontSize:"12px",color:TEXTDD}}>{spark.date}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+
+            {openCon.ids.length===0 ? (
+              <div style={{textAlign:"center",paddingTop:"40px"}}><p style={{color:TEXTD,fontStyle:"italic"}}>No sparks in this constellation yet.</p></div>
+            ) : (
+              <div style={{marginTop:"16px",background:"linear-gradient(180deg,rgba(9,23,42,0.6) 0%,rgba(5,14,30,0.8) 100%)",borderRadius:"8px",border:`1px solid ${BORDER}`,overflow:"hidden",position:"relative"}}>
+                {/* Background stars atmosphere */}
+                <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(20,50,100,0.4) 0%,transparent 70%)",pointerEvents:"none"}}/>
+                <ConstellationStarMap
+                  sparks={sparks.filter(s=>openCon.ids.includes(s.id))}
+                  onSparkClick={(spark)=>{setOpenSpark(spark);setEditMode(false);}}
+                  width={580} height={420}
+                />
+                <div style={{padding:"12px 20px 16px",borderTop:`1px solid ${BORDER}`,textAlign:"center"}}>
+                  <p style={{margin:0,fontSize:"12px",color:TEXTDD,fontStyle:"italic",letterSpacing:"0.1em"}}>Tap a star to preview · Tap again to open</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ══ CONSTELLATIONS ══ */}
+        {/* ══ CONSTELLATIONS LIST ══ */}
         {tab==="constellations" && !openCon && (
           <div style={{paddingTop:"24px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px"}}>
@@ -596,6 +847,7 @@ function Lucida() {
                 <button onClick={()=>setShowNewCon(true)} style={{background:"transparent",border:"none",color:GOLDD,fontSize:"13px",letterSpacing:"0.15em",cursor:"pointer",fontFamily:BODY,padding:0,textTransform:"uppercase"}}>+ New</button>
               </div>
             </div>
+
             {showNewCon && (
               <div style={{marginBottom:"22px",padding:"22px",background:"rgba(9,23,42,0.9)",border:`1px solid ${BORDER}`,borderRadius:"4px"}}>
                 <Lbl center>New Constellation</Lbl>
@@ -607,17 +859,23 @@ function Lucida() {
                 </div>
               </div>
             )}
+
             {cons.map(c=>(
-              <div key={c.id} style={{marginBottom:"12px",padding:"24px 26px",background:"linear-gradient(135deg,rgba(16,32,58,0.92),rgba(9,23,42,0.97))",border:`1px solid ${BORDER}`,borderRadius:"4px",cursor:"pointer",transition:"all 0.2s"}}
+              <div key={c.id} style={{marginBottom:"12px",padding:"20px 22px",background:"linear-gradient(135deg,rgba(16,32,58,0.92),rgba(9,23,42,0.97))",border:`1px solid ${BORDER}`,borderRadius:"4px",cursor:"pointer",transition:"all 0.2s",display:"flex",alignItems:"center",gap:"16px"}}
                 onClick={()=>setOpenCon(c)}
                 onMouseEnter={e=>e.currentTarget.style.borderColor="rgba(226,185,78,0.5)"}
                 onMouseLeave={e=>e.currentTarget.style.borderColor=BORDER}>
-                <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
-                  <MoonSVG size={16} opacity={0.8}/>
-                  <span style={{fontSize:"20px",color:TEXT,letterSpacing:"0.03em",flex:1,fontFamily:DISPLAY}}>{c.name}</span>
-                  <span style={{fontSize:"13px",color:TEXTDD,whiteSpace:"nowrap",flexShrink:0}}>{c.ids.length} {c.ids.length===1?"spark":"sparks"}</span>
+                {/* Mini star map */}
+                <div style={{flexShrink:0,opacity:0.85}}>
+                  <MiniStarMap sparkCount={c.ids.length} width={72} height={54}/>
                 </div>
-                {c.desc && <p style={{margin:"8px 0 0 26px",fontSize:"15px",color:TEXTD,fontStyle:"italic",lineHeight:1.65}}>{c.desc}</p>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"4px"}}>
+                    <span style={{fontSize:"19px",color:TEXT,letterSpacing:"0.03em",fontFamily:DISPLAY}}>{c.name}</span>
+                    <span style={{fontSize:"12px",color:TEXTDD,whiteSpace:"nowrap",flexShrink:0,marginLeft:"auto"}}>{c.ids.length} {c.ids.length===1?"spark":"sparks"}</span>
+                  </div>
+                  {c.description && <p style={{margin:0,fontSize:"14px",color:TEXTD,fontStyle:"italic",lineHeight:1.55,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.description}</p>}
+                </div>
               </div>
             ))}
             {cons.length===0 && <div style={{textAlign:"center",paddingTop:"60px"}}><MoonSVG size={36} opacity={0.25}/><p style={{color:TEXTD,fontStyle:"italic",marginTop:"16px"}}>No constellations yet.</p></div>}
@@ -631,15 +889,11 @@ function Lucida() {
               <MoonSVG size={28} opacity={0.75}/>
               <h2 style={{margin:"10px 0 4px",fontSize:"28px",color:TEXT,fontWeight:"normal",letterSpacing:"0.06em",fontFamily:DISPLAY}}>Your Story</h2>
             </div>
-
-            {/* Range selector */}
             <div style={{display:"flex",gap:"8px",marginBottom:"22px",flexWrap:"wrap",justifyContent:"center"}}>
               {Object.entries(RANGE_LABELS).map(([key,lbl])=>(
                 <button key={key} onClick={()=>{setStoryRange(key);setStoryText("");}} style={{padding:"8px 14px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"13px",letterSpacing:"0.08em",background:storyRange===key?"rgba(226,185,78,0.12)":"transparent",border:`1px solid ${storyRange===key?GOLD:BORDER}`,color:storyRange===key?GOLDW:TEXTD,transition:"all 0.2s"}}>{lbl}</button>
               ))}
             </div>
-
-            {/* Reflection */}
             <div style={{marginBottom:"24px",padding:"24px 26px",background:"linear-gradient(145deg,rgba(18,40,72,0.92),rgba(10,22,44,0.97))",borderRadius:"4px",position:"relative"}}>
               <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 70% 50% at 30% 40%,rgba(212,168,67,0.07) 0%,transparent 65%)",pointerEvents:"none"}}/>
               <GoldLine/>
@@ -651,18 +905,14 @@ function Lucida() {
               </div>
               <GoldLine/>
             </div>
-
-            {/* Stats — filtered by range */}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"10px",marginBottom:"24px"}}>
-              {[{v:storySparks.length,l:"sparks",c:GOLDW},{v:storyWeekCount,l:"days active",c:"#7DC0D4"},{v:cons.length,l:"constellations",c:"#9BAED4"}].map(s=>(
+              {[{v:storySparks.length,l:"sparks",c:GOLDW},{v:weekCount,l:"days active",c:"#7DC0D4"},{v:cons.length,l:"constellations",c:"#9BAED4"}].map(s=>(
                 <div key={s.l} style={{padding:"18px 14px",background:"rgba(16,32,58,0.85)",border:`1px solid ${BORDER}`,borderRadius:"4px",textAlign:"center"}}>
                   <p style={{margin:"0 0 4px",fontSize:"30px",color:s.c,fontWeight:"normal",fontFamily:DISPLAY}}>{s.v}</p>
                   <p style={{margin:0,fontSize:"11px",letterSpacing:"0.16em",textTransform:"uppercase",color:TEXTDD}}>{s.l}</p>
                 </div>
               ))}
             </div>
-
-            {/* Sparks by type — filtered */}
             <div style={{marginBottom:"24px"}}>
               <Lbl>Sparks by type</Lbl>
               {byType.filter(s=>s.count>0).map(s=>(
@@ -677,8 +927,6 @@ function Lucida() {
               ))}
               {byType.every(s=>s.count===0) && <p style={{color:TEXTDD,fontStyle:"italic",fontSize:"14px"}}>No sparks in this period.</p>}
             </div>
-
-            {/* Feelings — filtered, tappable → gallery */}
             <div style={{marginBottom:"24px"}}>
               <Lbl>Dominant feelings</Lbl>
               <p style={{margin:"-8px 0 12px",fontSize:"13px",color:TEXTDD,fontStyle:"italic"}}>Tap a feeling to see those sparks →</p>
@@ -694,8 +942,6 @@ function Lucida() {
                 {byFeeling.every(f=>f.count===0) && <p style={{color:TEXTDD,fontStyle:"italic",fontSize:"14px"}}>No feelings recorded in this period.</p>}
               </div>
             </div>
-
-            {/* Week dots — always shows current week */}
             <div>
               <Lbl>This week at a glance</Lbl>
               <div style={{display:"flex",gap:"10px"}}>
@@ -767,20 +1013,10 @@ function Lucida() {
                   </div>
                 )}
 
-                {newSpark.type!=="sound" && (
-                  <div style={{marginBottom:"18px",textAlign:"center"}}>
-                    <input ref={imgRef} type="file" accept="image/*" onChange={handleImg} style={{display:"none"}}/>
-                    {newSpark.image
-                      ?<div style={{position:"relative",display:"inline-block"}}><img src={newSpark.image} alt="" style={{maxWidth:"100%",maxHeight:"200px",objectFit:"cover",borderRadius:"3px",display:"block",border:`1px solid ${BORDER}`}}/><button onClick={()=>setNewSpark(n=>({...n,image:null}))} style={{position:"absolute",top:"8px",right:"8px",background:"rgba(9,23,42,0.9)",border:`1px solid ${BORDER}`,borderRadius:"2px",color:TEXTD,fontSize:"13px",padding:"4px 8px",cursor:"pointer",fontFamily:BODY}}>remove</button></div>
-                      :<button onClick={()=>imgRef.current.click()} style={{padding:"10px 18px",background:"transparent",border:`1px dashed ${DIMMER}`,borderRadius:"3px",color:TEXTD,fontSize:"15px",cursor:"pointer",fontFamily:BODY,transition:"all 0.2s"}} onMouseEnter={e=>{e.target.style.borderColor=GOLDD;e.target.style.color=TEXT;}} onMouseLeave={e=>{e.target.style.borderColor=DIMMER;e.target.style.color=TEXTD;}}>◈ Add image</button>
-                    }
-                  </div>
-                )}
-
                 <FeelingSection value={newSpark.feeling} onChange={f=>setNewSpark(n=>({...n,feeling:f}))} isEdit={false}/>
                 <div style={{display:"flex",gap:"12px",justifyContent:"center",flexWrap:"wrap"}}>
                   <PBtn onClick={()=>canSave&&setStep(2)} disabled={!canSave}>Reflect →</PBtn>
-                  <GBtn onClick={doSave}>Just save it</GBtn>
+                  <GBtn onClick={saveSpark} disabled={saving}>{saving?"Saving...":"Just save it"}</GBtn>
                   <GBtn onClick={()=>setTab("home")}>Cancel</GBtn>
                 </div>
               </div>
@@ -803,7 +1039,7 @@ function Lucida() {
                 </div>
                 <div style={{textAlign:"center"}}>
                   {saved?<div style={{display:"inline-flex",alignItems:"center",gap:"10px",color:GOLDW,fontSize:"18px",fontStyle:"italic",animation:"goldPulse 0.8s ease"}}><MoonSVG size={18} opacity={0.9}/>Preserved.</div>
-                    :<PBtn onClick={doSave}>Preserve this spark</PBtn>}
+                    :<PBtn onClick={saveSpark} disabled={saving}>{saving?"Saving...":"Preserve this spark"}</PBtn>}
                 </div>
               </div>
             )}
@@ -821,11 +1057,12 @@ function Lucida() {
               <Lbl center>Add to a constellation?</Lbl>
               <p style={{margin:"0 0 20px",fontSize:"15px",color:TEXTDD,fontStyle:"italic"}}>Optional — you can always do this later.</p>
               <div style={{display:"flex",gap:"10px",flexWrap:"wrap",justifyContent:"center",marginBottom:"24px"}}>
-                {cons.map(c=>{ const tagged=sparks.find(s=>s.id===savedId)?.cids.includes(c.id); return (
+                {cons.map(c=>{ const tagged=(sparks.find(s=>s.id===savedId)?.cids||[]).includes(c.id); return (
                   <button key={c.id} onClick={()=>tagSaved(c.id)} style={{padding:"10px 18px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"15px",background:tagged?"rgba(226,185,78,0.12)":"transparent",border:`1px solid ${tagged?GOLDW:BORDER}`,color:tagged?GOLDW:TEXTD,display:"inline-flex",alignItems:"center",gap:"7px",transition:"all 0.2s"}}>
                     <MoonSVG size={12} opacity={0.75}/>{c.name}
                   </button>
                 ); })}
+                {cons.length===0 && <p style={{color:TEXTDD,fontStyle:"italic",fontSize:"14px"}}>Create a constellation from the Constellations tab.</p>}
               </div>
               <GoldLine/>
               <div style={{marginTop:"24px"}}><PBtn onClick={finishCapture}>Done</PBtn></div>
@@ -841,7 +1078,7 @@ function Lucida() {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"32px"}}>
               <button onClick={()=>{setOpenSpark(null);setEditMode(false);}} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"13px",letterSpacing:"0.18em",cursor:"pointer",fontFamily:BODY,padding:0,textTransform:"uppercase"}}>← Close</button>
               <div style={{display:"flex",gap:"12px"}}>
-                {!editMode && <button onClick={()=>{setEditData({...openSpark});setEditMode(true);}} style={{background:"transparent",border:`1px solid ${BORDER}`,borderRadius:"3px",color:TEXTD,fontSize:"13px",letterSpacing:"0.12em",cursor:"pointer",fontFamily:BODY,padding:"7px 14px",textTransform:"uppercase"}}>Edit</button>}
+                {!editMode && <button onClick={()=>{setEditData({...openSpark,cids:[...(openSpark.cids||[])]});setEditMode(true);}} style={{background:"transparent",border:`1px solid ${BORDER}`,borderRadius:"3px",color:TEXTD,fontSize:"13px",letterSpacing:"0.12em",cursor:"pointer",fontFamily:BODY,padding:"7px 14px",textTransform:"uppercase"}}>Edit</button>}
                 <button onClick={()=>setDelConfirm(openSpark.id)} style={{background:"transparent",border:"1px solid rgba(139,26,42,0.5)",borderRadius:"3px",color:"#D4707F",fontSize:"13px",letterSpacing:"0.12em",cursor:"pointer",fontFamily:BODY,padding:"7px 14px",textTransform:"uppercase"}}>Delete</button>
               </div>
             </div>
@@ -853,7 +1090,6 @@ function Lucida() {
                   {openSpark.feeling && <span style={{fontSize:"13px",color:TEXTD,fontStyle:"italic"}}>· {openSpark.feeling}</span>}
                 </div>
                 {openSpark.grad && <div style={{width:"100%",height:"180px",background:openSpark.grad,borderRadius:"4px",marginBottom:"24px",opacity:0.75}}/>}
-                {openSpark.image && <img src={openSpark.image} alt="" style={{width:"100%",borderRadius:"4px",marginBottom:"24px",display:"block"}}/>}
                 {openSpark.audio && <audio controls src={openSpark.audio} style={{width:"100%",marginBottom:"24px"}}/>}
                 <GoldLine/>
                 <p style={{margin:"24px auto",fontSize:"22px",lineHeight:1.88,color:TEXT,fontStyle:openSpark.type==="quote"?"italic":"normal",textAlign:"center",maxWidth:"480px"}}>
@@ -862,15 +1098,16 @@ function Lucida() {
                 <GoldLine/>
                 {openSpark.reflection && <p style={{margin:"20px 0 0",fontSize:"17px",color:TEXTD,fontStyle:"italic",textAlign:"center",lineHeight:1.78,borderLeft:`2px solid ${GOLDDD}`,paddingLeft:"16px"}}>"{openSpark.reflection}"</p>}
                 {openSpark.context && <p style={{margin:"14px 0 0",fontSize:"14px",color:TEXTDD,textAlign:"center"}}>📍 {openSpark.context}</p>}
-                {openSpark.musicLink && <div style={{textAlign:"center",marginTop:"16px"}}><a href={openSpark.musicLink} target="_blank" rel="noopener noreferrer" style={{fontSize:"15px",color:TYPES.music.color,textDecoration:"none",fontStyle:"italic"}}>♫ Open in music app →</a></div>}
+                {openSpark.music_link && <div style={{textAlign:"center",marginTop:"16px"}}><a href={openSpark.music_link} target="_blank" rel="noopener noreferrer" style={{fontSize:"15px",color:TYPES.music.color,textDecoration:"none",fontStyle:"italic"}}>♫ Open in music app →</a></div>}
                 <div style={{marginTop:"28px",paddingTop:"20px",borderTop:`1px solid ${BORDER}`}}>
                   <Lbl center>Constellations</Lbl>
                   <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"center"}}>
-                    {cons.map(c=>(
-                      <button key={c.id} onClick={()=>toggleConSpark(openSpark.id,c.id)} style={{padding:"7px 14px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"14px",background:openSpark.cids.includes(c.id)?"rgba(226,185,78,0.1)":"transparent",border:`1px solid ${openSpark.cids.includes(c.id)?GOLDW:DIMMER}`,color:openSpark.cids.includes(c.id)?GOLDW:TEXTD,display:"inline-flex",alignItems:"center",gap:"6px",transition:"all 0.2s"}}>
-                        {openSpark.cids.includes(c.id)?"✦":"+"} {c.name}
-                      </button>
-                    ))}
+                    {cons.map(c=>{
+                      const inCon=(openSpark.cids||[]).includes(c.id);
+                      return <button key={c.id} onClick={()=>tagSparkToCon(openSpark.id,c.id,!inCon)} style={{padding:"7px 14px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"14px",background:inCon?"rgba(226,185,78,0.1)":"transparent",border:`1px solid ${inCon?GOLDW:DIMMER}`,color:inCon?GOLDW:TEXTD,display:"inline-flex",alignItems:"center",gap:"6px",transition:"all 0.2s"}}>
+                        {inCon?"✦":"+"} {c.name}
+                      </button>;
+                    })}
                   </div>
                 </div>
                 <div style={{marginTop:"20px",paddingTop:"20px",borderTop:`1px solid ${BORDER}`,textAlign:"center"}}>
@@ -881,7 +1118,7 @@ function Lucida() {
               <div>
                 <Lbl center>Edit spark</Lbl>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Content</p>
-                <textarea value={editData.content} onChange={e=>setEditData(d=>({...d,content:e.target.value}))} style={{...ISty,minHeight:"120px",fontSize:"17px",lineHeight:"1.8",padding:"15px",fontStyle:"italic",resize:"vertical",textAlign:"center",marginBottom:"14px"}}/>
+                <textarea value={editData.content||""} onChange={e=>setEditData(d=>({...d,content:e.target.value}))} style={{...ISty,minHeight:"120px",fontSize:"17px",lineHeight:"1.8",padding:"15px",fontStyle:"italic",resize:"vertical",textAlign:"center",marginBottom:"14px"}}/>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Reflection</p>
                 <textarea value={editData.reflection||""} onChange={e=>setEditData(d=>({...d,reflection:e.target.value}))} placeholder="Why did this move you?" style={{...ISty,minHeight:"80px",fontSize:"15px",lineHeight:"1.7",padding:"13px",fontStyle:"italic",resize:"vertical",textAlign:"center",marginBottom:"14px"}}/>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Context</p>
@@ -889,14 +1126,15 @@ function Lucida() {
                 <FeelingSection value={editData.feeling} onChange={f=>setEditData(d=>({...d,feeling:f}))} isEdit={true}/>
                 <p style={{margin:"0 0 10px",fontSize:"11px",letterSpacing:"0.22em",textTransform:"uppercase",color:GOLDD,textAlign:"center"}}>Constellations</p>
                 <div style={{display:"flex",gap:"8px",flexWrap:"wrap",justifyContent:"center",marginBottom:"22px"}}>
-                  {cons.map(c=>(
-                    <button key={c.id} onClick={()=>setEditData(d=>{ const has=d.cids.includes(c.id); return{...d,cids:has?d.cids.filter(i=>i!==c.id):[...d.cids,c.id]}; })} style={{padding:"7px 14px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"14px",background:editData.cids.includes(c.id)?"rgba(226,185,78,0.1)":"transparent",border:`1px solid ${editData.cids.includes(c.id)?GOLDW:DIMMER}`,color:editData.cids.includes(c.id)?GOLDW:TEXTD,display:"inline-flex",alignItems:"center",gap:"6px",transition:"all 0.2s"}}>
-                      {editData.cids.includes(c.id)?"✦":"+"} {c.name}
-                    </button>
-                  ))}
+                  {cons.map(c=>{
+                    const inCon=(editData.cids||[]).includes(c.id);
+                    return <button key={c.id} onClick={()=>setEditData(d=>{ const has=(d.cids||[]).includes(c.id); return{...d,cids:has?(d.cids||[]).filter(i=>i!==c.id):[...(d.cids||[]),c.id]}; })} style={{padding:"7px 14px",borderRadius:"3px",cursor:"pointer",fontFamily:BODY,fontSize:"14px",background:inCon?"rgba(226,185,78,0.1)":"transparent",border:`1px solid ${inCon?GOLDW:DIMMER}`,color:inCon?GOLDW:TEXTD,display:"inline-flex",alignItems:"center",gap:"6px",transition:"all 0.2s"}}>
+                      {inCon?"✦":"+"} {c.name}
+                    </button>;
+                  })}
                 </div>
                 <div style={{display:"flex",gap:"12px",justifyContent:"center"}}>
-                  <PBtn onClick={saveEdit}>Save changes</PBtn>
+                  <PBtn onClick={()=>updateSpark(editData)}>Save changes</PBtn>
                   <GBtn onClick={()=>setEditMode(false)}>Cancel</GBtn>
                 </div>
               </div>
@@ -913,7 +1151,7 @@ function Lucida() {
             <p style={{margin:"16px 0 8px",fontSize:"19px",color:TEXT}}>Delete this spark?</p>
             <p style={{margin:"0 0 24px",fontSize:"15px",color:TEXTD,fontStyle:"italic"}}>This cannot be undone.</p>
             <div style={{display:"flex",gap:"12px",justifyContent:"center"}}>
-              <GBtn onClick={()=>doDelete(delConfirm)} danger>Delete</GBtn>
+              <GBtn onClick={()=>deleteSpark(delConfirm)} danger>Delete</GBtn>
               <PBtn onClick={()=>setDelConfirm(null)}>Keep it</PBtn>
             </div>
           </div>
@@ -950,8 +1188,8 @@ function Lucida() {
         <div style={{position:"fixed",inset:0,background:"rgba(5,12,24,0.97)",zIndex:200,overflowY:"auto",padding:"40px 24px"}} onClick={()=>setShowRand(false)}>
           <div onClick={e=>e.stopPropagation()} style={{maxWidth:"580px",margin:"0 auto"}}>
             <button onClick={()=>setShowRand(false)} style={{background:"transparent",border:"none",color:TEXTD,fontSize:"13px",letterSpacing:"0.18em",cursor:"pointer",fontFamily:BODY,padding:"0 0 20px",textTransform:"uppercase"}}>← Back</button>
-            <div style={{textAlign:"center",marginBottom:"24px"}}>
-              <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"10px",marginBottom:"10px"}}>
+            <div style={{textAlign:"center",marginBottom:"20px"}}>
+              <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:"10px",marginBottom:"8px"}}>
                 <MoonSVG size={22} opacity={0.88}/>
                 <h2 style={{margin:0,fontSize:"26px",color:TEXT,fontWeight:"normal",letterSpacing:"0.04em",fontFamily:DISPLAY}}>Random Constellation</h2>
               </div>
@@ -962,24 +1200,20 @@ function Lucida() {
               <p style={{margin:"16px 0",fontSize:"18px",lineHeight:1.88,color:TEXT,fontStyle:"italic",textAlign:"center"}}>"{randCon.quote}"</p>
               <GoldLine/>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"20px"}}>
-              {randCon.sparks.map((spark,i)=>{
-                const large=!!spark.grad||spark.content.length>150||i%4===0;
-                return (
-                  <div key={spark.id} style={{gridColumn:large?"1 / -1":"auto"}}>
-                    <div style={{padding:large?"20px":"15px",background:"linear-gradient(135deg,rgba(16,32,58,0.96),rgba(9,23,42,0.99))",border:`1px solid ${BORDER}`,borderLeft:`2px solid ${TYPES[spark.type].color}`,borderRadius:"4px",height:"100%",boxSizing:"border-box"}}>
-                      {spark.grad && <div style={{width:"100%",height:"80px",background:spark.grad,borderRadius:"3px",marginBottom:"10px",opacity:0.7}}/>}
-                      <div style={{display:"flex",gap:"8px",alignItems:"center",marginBottom:"8px"}}>
-                        <TypeIcon type={spark.type}/>
-                        <span style={{fontSize:"13px",color:TEXTDD}}>{spark.date}</span>
-                        {spark.feeling && <span style={{fontSize:"13px",color:TEXTD,fontStyle:"italic"}}>· {spark.feeling}</span>}
-                      </div>
-                      <p style={{margin:0,fontSize:large?"16px":"14px",lineHeight:1.78,color:TEXT,fontStyle:spark.type==="quote"?"italic":"normal"}}>{spark.content}</p>
-                    </div>
-                  </div>
-                );
-              })}
+
+            {/* Star map for random constellation */}
+            <div style={{marginBottom:"20px",background:"linear-gradient(180deg,rgba(9,23,42,0.6) 0%,rgba(5,14,30,0.8) 100%)",borderRadius:"8px",border:`1px solid ${BORDER}`,overflow:"hidden",position:"relative"}}>
+              <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse 80% 60% at 50% 40%,rgba(20,50,100,0.4) 0%,transparent 70%)",pointerEvents:"none"}}/>
+              <ConstellationStarMap
+                sparks={randCon.sparks}
+                onSparkClick={(spark)=>{}}
+                width={520} height={340}
+              />
+              <div style={{padding:"10px 20px 14px",borderTop:`1px solid ${BORDER}`,textAlign:"center"}}>
+                <p style={{margin:0,fontSize:"12px",color:TEXTDD,fontStyle:"italic",letterSpacing:"0.1em"}}>Tap a star to preview</p>
+              </div>
             </div>
+
             {randInsight && (
               <div style={{marginBottom:"20px",padding:"20px 22px",background:"rgba(226,185,78,0.07)",border:`1px solid ${BORDER}`,borderRadius:"4px"}}>
                 <p style={{margin:"0 0 8px",fontSize:"11px",letterSpacing:"0.25em",textTransform:"uppercase",color:GOLDD}}>Lucida sees</p>
@@ -996,7 +1230,7 @@ function Lucida() {
         </div>
       )}
 
-      {/* NAVIGATION — truly even */}
+      {/* NAVIGATION */}
       <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100}}>
         <div style={{height:"1px",background:`linear-gradient(to right,transparent,${GOLDW},transparent)`,opacity:0.7}}/>
         <div style={{background:`linear-gradient(to top,${NAVY} 55%,rgba(9,23,42,0.97))`,backdropFilter:"blur(20px)"}}>
@@ -1010,20 +1244,11 @@ function Lucida() {
           </div>
         </div>
       </div>
-
-      <style>{`
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        textarea::placeholder, input::placeholder { color: rgba(242,234,216,0.22); font-style: italic; }
-        div::-webkit-scrollbar { display: none; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes goldPulse { 0%{opacity:0;transform:scale(0.95);} 60%{opacity:1;transform:scale(1.02);} 100%{opacity:1;transform:scale(1);} }
-        audio { accent-color: #E2B94E; }
-      `}</style>
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<Lucida/>);
-  </script>
+</script>
 </body>
 </html>
